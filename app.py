@@ -356,7 +356,7 @@ if ticker_input:
                 c1, c2, c3 = st.columns(3)
                 with c1:
                     strategy_type = st.selectbox("選擇策略", ["雙均線策略 (MA Crossover)", "RSI 逆勢策略 (RSI Reversal)"])
-                    initial_capital = st.number_input("初始資金", value=1000000, step=100000)
+                    initial_capital = st.number_input("初始資金", value=10000000, step=1000000)
                 with c2:
                     if strategy_type == "雙均線策略 (MA Crossover)":
                         p1 = st.number_input("短期均線 (MA Short)", value=5, min_value=1)
@@ -407,5 +407,4 @@ if ticker_input:
                 with st.expander("查看詳細交易紀錄"):
                     st.dataframe(trades)
     else:
-
         st.error(f"找不到代號：{ticker_input}，請確認輸入正確。")
