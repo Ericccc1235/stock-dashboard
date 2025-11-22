@@ -6,40 +6,69 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 # --- 1. 頁面設定 ---
-st.set_page_config(page_title="免費股市看板", layout="wide")
-st.title("📈 免費股市看板 (全指標分析 + 策略回測)")
+st.set_page_config(page_title="終極股市看板", layout="wide")
+st.title("📈 終極股市看板 (全指標分析 + 策略回測)")
 
-# --- 2. 側邊欄輸入 (保持搜尋功能) ---
+# --- 2. 側邊欄輸入 (修正選單邏輯) ---
 st.sidebar.header("查詢設定")
 
 # 市場選擇
 market_type = st.sidebar.radio("1️⃣ 請選擇市場", ["🇹🇼 台股 (Taiwan)", "🇺🇸 美股 (US)"], horizontal=True)
 
-# 股票清單
+# 股票清單 (注意：這裡的 Key 必須跟選單顯示的一模一樣)
 tw_stocks = {
-    "2330 台積電": "2330.TW",
     "🔍 自行輸入代號": "custom",
+    "2330 台積電": "2330.TW", 
     "2317 鴻海": "2317.TW", 
+    "2454 聯發科": "2454.TW",
     "2603 長榮": "2603.TW", 
-    "3231 緯創": "3231.TW",
     "2327 國巨": "2327.TW",
     "0050 元大台灣50": "0050.TW", 
     "2408 南亞科": "2408.TW", 
-    "2344 華邦電": "2344.TW"
+    "2344 華邦電": "2344.TW",
+    "2382 廣達": "2382.TW", 
+    "3231 緯創": "3231.TW",
 }
+
 us_stocks = {
-    "NVDA (NVIDIA)": "NVDA",
     "🔍 自行輸入代號": "custom",
-    "AAPL (Apple)": "AAPL",
+    "NVDA (NVIDIA)": "NVDA", 
+    "AAPL (Apple)": "AAPL", 
     "TSLA (Tesla)": "TSLA",
-    "MSFT (Microsoft)": "MSFT", "AMD (AMD)": "AMD", "QQQ (Nasdaq 100)": "QQQ", 
-    "SPY (S&P 500)": "SPY", "SOXX (Semiconductor)": "SOXX", "TQQQ (3x Long QQQ)": "TQQQ"
+    "MSFT (Microsoft)": "MSFT", 
+    "AMD (AMD)": "AMD", 
+    "QQQ (Nasdaq 100)": "QQQ", 
+    "SPY (S&P 500)": "SPY", 
+    "SOXX (Semiconductor)": "SOXX", 
+    "TQQQ (3x Long QQQ)": "TQQQ"
 }
 
-current_list = tw_stocks if "台股" in market_type else us_stocks
-selected_label = st.sidebar.selectbox("2️⃣ 搜尋或選擇股票", options=list(current_list.keys()))
+# 決定目前的清單
+current_dict = tw_stocks if "台股" in market_type else us_stocks
+options_list = list(current_dict.keys())
 
-if current_list[selected_label] == "custom":
+# --- 關鍵修正：設定預設選項 ---
+# 如果是台股，預設選 "2330 台積電"；如果是美股，預設選 "NVDA"
+if "台股" in market_type:
+    default_option = "2330 台積電"
+else:
+    default_option = "NVDA (NVIDIA)"
+
+# 嘗試找出預設選項在清單中的位置 (index)
+try:
+    default_index = options_list.index(default_option)
+except ValueError:
+    default_index = 0 # 如果找不到，就預設選第一個
+
+# 建立下拉選單，並套用 index
+selected_label = st.sidebar.selectbox(
+    "2️⃣ 搜尋或選擇股票", 
+    options=options_list, 
+    index=default_index  # 這裡讓它自動跳到台積電
+)
+
+# 處理代號邏輯
+if current_dict[selected_label] == "custom":
     raw_input = st.sidebar.text_input("請輸入代號 (如 2330 或 NVDA)")
     if raw_input:
         if "台股" in market_type:
@@ -49,11 +78,11 @@ if current_list[selected_label] == "custom":
     else:
         ticker_input = None
 else:
-    ticker_input = current_list[selected_label]
+    ticker_input = current_dict[selected_label]
 
-period = st.sidebar.selectbox("3️⃣ 資料時間範圍", ("3mo","6mo", "1y", "2y", "5y", "10y", "max"), index=0)
+period = st.sidebar.selectbox("3️⃣ 資料時間範圍", ("6mo", "1y", "2y", "5y", "10y", "max"), index=1)
 
-# --- 3. 全指標計算函數 (8大指標) ---
+# --- 3. 全指標計算函數 ---
 def calculate_indicators(df):
     # 1. MA
     df['MA5'] = df['Close'].rolling(window=5).mean()
@@ -127,7 +156,7 @@ def calculate_indicators(df):
 
     return df
 
-# --- 4. 智能訊號分析 (恢復完整版) ---
+# --- 4. 智能訊號分析 ---
 def analyze_signals(df):
     last = df.iloc[-1]
     prev = df.iloc[-2]
@@ -253,7 +282,7 @@ def run_backtest(df, strategy, param1, param2, initial_cash=1000000):
         bt_df['Signal'] = 0
         holding = False
         signals = []
-        for r in bt_df['RSI6']: # 使用 6日 RSI
+        for r in bt_df['RSI6']: 
             if r < param1: holding = True
             elif r > param2: holding = False
             signals.append(1 if holding else 0)
@@ -311,11 +340,10 @@ if ticker_input:
         data, info = get_stock_data(ticker_input, period)
 
     if data is not None:
-        # 使用 Tabs 分頁：Tab 1 是看盤(完整功能)，Tab 2 是回測
         tab1, tab2 = st.tabs(["📊 全方位市場儀表板", "🧪 策略回測實驗室"])
 
         # ==========================================
-        # TAB 1: 恢復原本所有的看盤功能 (7層圖+8指標報告)
+        # TAB 1: 看盤
         # ==========================================
         with tab1:
             signal_list, suggestion, sugg_color = analyze_signals(data)
@@ -335,7 +363,7 @@ if ticker_input:
                 st.markdown(f"### 綜合建議")
                 st.markdown(f"<h3 style='color:{sugg_color}; border: 2px solid {sugg_color}; padding: 5px; text-align: center; border-radius: 10px;'>{suggestion}</h3>", unsafe_allow_html=True)
 
-            # 智能分析報告 (完整 8 指標)
+            # 智能分析報告
             with st.expander("🤖 查看【8 大指標全方位智能診斷】", expanded=True):
                 cols = st.columns(4) 
                 for i, (indicator, meaning, action, color) in enumerate(signal_list):
@@ -349,7 +377,7 @@ if ticker_input:
                         else: st.markdown(f"<span style='color:gray'>⚪ {action}</span>", unsafe_allow_html=True)
                         st.write("---")
 
-            # 7層詳細技術圖表 (恢復原狀)
+            # 7層技術圖表
             st.subheader("技術分析圖表 (7層詳細版)")
             fig = make_subplots(
                 rows=7, cols=1, shared_xaxes=True, vertical_spacing=0.01,
@@ -400,7 +428,7 @@ if ticker_input:
                 st.dataframe(data.sort_index(ascending=False))
 
         # ==========================================
-        # TAB 2: 策略回測實驗室 (新功能)
+        # TAB 2: 回測
         # ==========================================
         with tab2:
             st.subheader("🛠️ 設定回測參數")
