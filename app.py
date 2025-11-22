@@ -6,94 +6,57 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 # --- 1. 頁面設定 ---
-st.set_page_config(page_title="旗艦級股市看板", layout="wide")
-st.title("📈 旗艦級股市技術分析看板 (智能搜尋版)")
+st.set_page_config(page_title="終極股市看板", layout="wide")
+st.title("📈 終極股市看板 (全指標分析 + 策略回測)")
 
-# --- 2. 側邊欄輸入 (搜尋邏輯大升級) ---
+# --- 2. 側邊欄輸入 (保持搜尋功能) ---
 st.sidebar.header("查詢設定")
 
-# 1. 選擇市場區域
+# 市場選擇
 market_type = st.sidebar.radio("1️⃣ 請選擇市場", ["🇹🇼 台股 (Taiwan)", "🇺🇸 美股 (US)"], horizontal=True)
 
-# 定義預設的熱門清單 (格式: "顯示名稱": "真實代號")
+# 股票清單
 tw_stocks = {
-    "🔍 自行輸入代號": "custom",
-    "2330 台積電": "2330.TW",
-    "2317 鴻海": "2317.TW",
+    "2330 台積電": "2330.TW", 
+    "🔍 自行輸入代號": "custom", 
+    "2317 鴻海": "2317.TW", 
     "2454 聯發科": "2454.TW",
-    "2303 聯電": "2303.TW",
-    "2603 長榮": "2603.TW",
-    "2609 陽明": "2609.TW",
-    "2615 萬海": "2615.TW",
-    "2382 廣達": "2382.TW",
+    "2603 長榮": "2603.TW", 
+    "2382 廣達": "2382.TW", 
     "3231 緯創": "3231.TW",
-    "6669 緯穎": "6669.TW",
-    "2357 華碩": "2357.TW",
-    "2376 技嘉": "2376.TW",
     "2327 國巨": "2327.TW",
-    "0050 元大台灣50": "0050.TW",
-    "0056 元大高股息": "0056.TW",
-    "00878 國泰永續高股息": "00878.TW",
-    "00929 復華台灣科技優息": "00929.TW",
-    "00919 群益台灣精選高息": "00919.TW",
-    "00940 元大台灣價值高息": "00940.TW"
+    "0050 元大台灣50": "0050.TW", 
+    "0056 元大高股息": "0056.TW", 
+    "2408 南亞科": "2408.TW", 
+    "2344 華邦電": "2344.TW"
 }
-
 us_stocks = {
+    "NVDA (NVIDIA)": "NVDA",
     "🔍 自行輸入代號": "custom",
-    "NVDA (NVIDIA 輝達)": "NVDA",
-    "AAPL (Apple 蘋果)": "AAPL",
-    "TSLA (Tesla 特斯拉)": "TSLA",
-    "MSFT (Microsoft 微軟)": "MSFT",
-    "GOOG (Google 谷歌)": "GOOG",
-    "AMZN (Amazon 亞馬遜)": "AMZN",
-    "AMD (Advanced Micro Devices)": "AMD",
-    "META (Meta/Facebook)": "META",
-    "NFLX (Netflix 網飛)": "NFLX",
-    "INTC (Intel 英特爾)": "INTC",
-    "TSM (台積電ADR)": "TSM",
-    "COIN (Coinbase)": "COIN",
-    "QQQ (那斯達克100 ETF)": "QQQ",
-    "SPY (標普500 ETF)": "SPY",
-    "SOXX (半導體 ETF)": "SOXX",
-    "TQQQ (三倍做多那斯達克)": "TQQQ"
+    "AAPL (Apple)": "AAPL",
+    "TSLA (Tesla)": "TSLA",
+    "MSFT (Microsoft)": "MSFT", "AMD (AMD)": "AMD", "QQQ (Nasdaq 100)": "QQQ", 
+    "SPY (S&P 500)": "SPY", "SOXX (Semiconductor)": "SOXX", "TQQQ (3x Long QQQ)": "TQQQ"
 }
 
-# 根據選擇載入清單
 current_list = tw_stocks if "台股" in market_type else us_stocks
+selected_label = st.sidebar.selectbox("2️⃣ 搜尋或選擇股票", options=list(current_list.keys()))
 
-# 2. 搜尋或選擇股票
-selected_label = st.sidebar.selectbox("2️⃣ 搜尋或選擇股票 (可打字搜尋)", options=list(current_list.keys()))
-
-# 3. 處理代號邏輯
 if current_list[selected_label] == "custom":
-    # 如果選「自行輸入」
-    raw_input = st.sidebar.text_input("請輸入代號 (例如 2330 或 NVDA)")
-    
+    raw_input = st.sidebar.text_input("請輸入代號 (如 2330 或 NVDA)")
     if raw_input:
-        # 自動處理台股後綴
         if "台股" in market_type:
-            # 如果使用者只輸入數字 (如 2330)，自動補上 .TW
-            if raw_input.isdigit(): 
-                ticker_input = f"{raw_input}.TW"
-            # 如果使用者已經打 .TW 或 .TWO，就照舊
-            elif ".TW" in raw_input.upper():
-                ticker_input = raw_input.upper()
-            # 處理上櫃股票 (這裡簡單假設如果是 4 位數且沒後綴，預設 .TW，若查不到可能需使用者手動打 .TWO)
-            else:
-                ticker_input = f"{raw_input}.TW"
+            ticker_input = f"{raw_input}.TW" if raw_input.isdigit() and ".TW" not in raw_input.upper() else raw_input.upper()
         else:
-            # 美股直接轉大寫
             ticker_input = raw_input.upper()
     else:
         ticker_input = None
 else:
-    # 如果選清單內的
     ticker_input = current_list[selected_label]
 
-period = st.sidebar.selectbox("3️⃣ 時間範圍", ("6mo", "1y", "2y", "5y", "max"), index=1)
+period = st.sidebar.selectbox("3️⃣ 資料時間範圍", ("3mo","6mo", "1y", "2y", "5y", "10y", "max"), index=0)
 
-# --- 3. 技術指標計算函數 ---
+# --- 3. 全指標計算函數 (8大指標) ---
 def calculate_indicators(df):
     # 1. MA
     df['MA5'] = df['Close'].rolling(window=5).mean()
@@ -113,12 +76,12 @@ def calculate_indicators(df):
     df['RSV'] = (df['Close'] - min_9) / (max_9 - min_9) * 100
     df['RSV'] = df['RSV'].fillna(50)
     k_list, d_list = [], []
-    k_curr, d_curr = 50, 50
+    k, d = 50, 50
     for rsv in df['RSV']:
-        k_curr = (2/3) * k_curr + (1/3) * rsv
-        d_curr = (2/3) * d_curr + (1/3) * k_curr
-        k_list.append(k_curr)
-        d_list.append(d_curr)
+        k = (2/3) * k + (1/3) * rsv
+        d = (2/3) * d + (1/3) * k
+        k_list.append(k)
+        d_list.append(d)
     df['K'] = k_list
     df['D'] = d_list
 
@@ -144,7 +107,7 @@ def calculate_indicators(df):
     # 6. BIAS
     df['BIAS20'] = (df['Close'] - df['MA20']) / df['MA20'] * 100
 
-    # 7. DMI
+    # 7. DMI/ADX
     df['H-L'] = df['High'] - df['Low']
     df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
     df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
@@ -167,7 +130,7 @@ def calculate_indicators(df):
 
     return df
 
-# --- 4. 智能訊號判讀 ---
+# --- 4. 智能訊號分析 (恢復完整版) ---
 def analyze_signals(df):
     last = df.iloc[-1]
     prev = df.iloc[-2]
@@ -186,10 +149,10 @@ def analyze_signals(df):
 
     # 2. Volume
     if last['Volume'] > 1.5 * last['Vol_MA5']:
-        signals.append(("成交量能", "爆量 (>5日均量1.5倍)", "人氣匯集", "red"))
+        signals.append(("成交量能", "爆量 (>1.5倍)", "人氣匯集", "red"))
         score += 0.5
     elif last['Volume'] < 0.6 * last['Vol_MA5']:
-        signals.append(("成交量能", "量縮 (<5日均量0.6倍)", "觀望", "gray"))
+        signals.append(("成交量能", "量縮 (<0.6倍)", "觀望", "gray"))
     else:
         signals.append(("成交量能", "量能溫和", "正常", "gray"))
 
@@ -224,27 +187,25 @@ def analyze_signals(df):
     elif last['MACD_Hist'] < 0 and prev['MACD_Hist'] >= 0:
         signals.append(("MACD", "翻綠", "轉弱", "green"))
         score -= 1
-    elif last['MACD_Hist'] > 0 and last['MACD_Hist'] > prev['MACD_Hist']:
-        signals.append(("MACD", "動能增強", "續強", "red"))
     else:
         signals.append(("MACD", "震盪", "中立", "gray"))
 
     # 6. RSI
     if last['RSI6'] > 80:
-        signals.append(("RSI", "短線過熱", "拉回風險", "green"))
+        signals.append(("RSI", "短線過熱 >80", "拉回風險", "green"))
         score -= 1
     elif last['RSI6'] < 20:
-        signals.append(("RSI", "短線超賣", "反彈機會", "red"))
+        signals.append(("RSI", "短線超賣 <20", "反彈機會", "red"))
         score += 1
     else:
-        signals.append(("RSI", "正常", "中立", "gray"))
+        signals.append(("RSI", f"數值 {last['RSI6']:.1f}", "正常", "gray"))
 
     # 7. BIAS
     if last['BIAS20'] > 10:
-        signals.append(("乖離率", "正乖離大", "修正風險", "green"))
+        signals.append(("乖離率", "正乖離 >10%", "修正風險", "green"))
         score -= 1
     elif last['BIAS20'] < -10:
-        signals.append(("乖離率", "負乖離大", "反彈機會", "red"))
+        signals.append(("乖離率", "負乖離 <-10%", "反彈機會", "red"))
         score += 1
     else:
         signals.append(("乖離率", "正常", "中立", "gray"))
@@ -253,7 +214,7 @@ def analyze_signals(df):
     if last['ADX'] > 25:
         trend = "多方" if last['+DI'] > last['-DI'] else "空方"
         color = "red" if trend == "多方" else "green"
-        signals.append(("DMI", f"趨勢明確 ({trend})", "趨勢延續", color))
+        signals.append(("DMI", f"趨勢明確 ({trend})", "延續", color))
         score += 1 if trend == "多方" else -1
     else:
         signals.append(("DMI", "ADX<25", "盤整", "gray"))
@@ -276,7 +237,66 @@ def analyze_signals(df):
 
     return signals, final_suggestion, final_color
 
-# --- 5. 獲取數據 ---
+# --- 5. 回測功能 ---
+def run_backtest(df, strategy, param1, param2, initial_cash=1000000):
+    cash = initial_cash
+    position = 0
+    trade_log = []
+    equity_curve = []
+    
+    bt_df = df.copy()
+    
+    if strategy == "雙均線策略 (MA Crossover)":
+        short_ma = bt_df['Close'].rolling(window=int(param1)).mean()
+        long_ma = bt_df['Close'].rolling(window=int(param2)).mean()
+        bt_df['Signal'] = 0
+        bt_df.loc[short_ma > long_ma, 'Signal'] = 1
+        
+    elif strategy == "RSI 逆勢策略 (RSI Reversal)":
+        bt_df['Signal'] = 0
+        holding = False
+        signals = []
+        for r in bt_df['RSI6']: # 使用 6日 RSI
+            if r < param1: holding = True
+            elif r > param2: holding = False
+            signals.append(1 if holding else 0)
+        bt_df['Signal'] = signals
+
+    bt_df['Position_Change'] = bt_df['Signal'].diff()
+    
+    for i in range(len(bt_df)):
+        price = bt_df['Close'].iloc[i]
+        date = bt_df.index[i]
+        change = bt_df['Position_Change'].iloc[i]
+        
+        if change == 1 and position == 0:
+            shares = int(cash // price)
+            cost = shares * price
+            fee = cost * 0.001425
+            if cash >= cost + fee:
+                cash -= (cost + fee)
+                position = shares
+                trade_log.append({'Date': date, 'Type': 'Buy', 'Price': price, 'Shares': shares, 'Balance': cash})
+        
+        elif change == -1 and position > 0:
+            revenue = position * price
+            fee = revenue * 0.001425
+            tax = revenue * 0.003
+            cash += (revenue - fee - tax)
+            trade_log.append({'Date': date, 'Type': 'Sell', 'Price': price, 'Shares': position, 'Balance': cash})
+            position = 0
+            
+        total_value = cash + (position * price)
+        equity_curve.append(total_value)
+
+    bt_df['Equity'] = equity_curve
+    final_value = equity_curve[-1]
+    total_return = (final_value - initial_cash) / initial_cash * 100
+    trades_df = pd.DataFrame(trade_log)
+    
+    return bt_df, trades_df, total_return, final_value
+
+# --- 6. 資料獲取 ---
 def get_stock_data(ticker, period):
     try:
         stock = yf.Ticker(ticker)
@@ -288,105 +308,150 @@ def get_stock_data(ticker, period):
     except:
         return None, None
 
-# --- 6. 主程式 ---
+# --- 7. 主程式邏輯 ---
 if ticker_input:
-    # 顯示載入中動畫
-    with st.spinner(f"正在下載 {ticker_input} 數據中..."):
+    with st.spinner(f"正在全速運算 {ticker_input} 所有數據..."):
         data, info = get_stock_data(ticker_input, period)
-    
-    if data is not None and not data.empty:
-        signal_list, suggestion, sugg_color = analyze_signals(data)
 
-        # 顯示頭部
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            stock_name = info.get('longName', ticker_input)
-            currency = info.get('currency', 'TWD')
-            current_price = data['Close'].iloc[-1]
-            change = current_price - data['Close'].iloc[-2]
-            pct_change = (change / data['Close'].iloc[-2]) * 100
-            color_text = "red" if change >= 0 else "green"
+    if data is not None:
+        # 使用 Tabs 分頁：Tab 1 是看盤(完整功能)，Tab 2 是回測
+        tab1, tab2 = st.tabs(["📊 全方位市場儀表板", "🧪 策略回測實驗室"])
+
+        # ==========================================
+        # TAB 1: 恢復原本所有的看盤功能 (7層圖+8指標報告)
+        # ==========================================
+        with tab1:
+            signal_list, suggestion, sugg_color = analyze_signals(data)
+
+            # 頭部資訊
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                stock_name = info.get('longName', ticker_input)
+                currency = info.get('currency', 'TWD')
+                current_price = data['Close'].iloc[-1]
+                change = current_price - data['Close'].iloc[-2]
+                pct_change = (change / data['Close'].iloc[-2]) * 100
+                color_text = "red" if change >= 0 else "green"
+                st.markdown(f"## {stock_name} ({ticker_input})")
+                st.markdown(f"<h2 style='color:{color_text}'>{current_price:.2f} {currency} ({change:+.2f} / {pct_change:+.2f}%)</h2>", unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"### 綜合建議")
+                st.markdown(f"<h3 style='color:{sugg_color}; border: 2px solid {sugg_color}; padding: 5px; text-align: center; border-radius: 10px;'>{suggestion}</h3>", unsafe_allow_html=True)
+
+            # 智能分析報告 (完整 8 指標)
+            with st.expander("🤖 查看【8 大指標全方位智能診斷】", expanded=True):
+                cols = st.columns(4) 
+                for i, (indicator, meaning, action, color) in enumerate(signal_list):
+                    with cols[i % 4]:
+                        st.markdown(f"**{indicator}**")
+                        st.caption(meaning)
+                        if color == "red": st.markdown(f"<span style='color:red; font-weight:bold'>🔴 {action}</span>", unsafe_allow_html=True)
+                        elif color == "green": st.markdown(f"<span style='color:green; font-weight:bold'>🟢 {action}</span>", unsafe_allow_html=True)
+                        elif color == "orange": st.markdown(f"<span style='color:orange; font-weight:bold'>🟠 {action}</span>", unsafe_allow_html=True)
+                        elif color == "blue": st.markdown(f"<span style='color:blue; font-weight:bold'>🔵 {action}</span>", unsafe_allow_html=True)
+                        else: st.markdown(f"<span style='color:gray'>⚪ {action}</span>", unsafe_allow_html=True)
+                        st.write("---")
+
+            # 7層詳細技術圖表 (恢復原狀)
+            st.subheader("技術分析圖表 (7層詳細版)")
+            fig = make_subplots(
+                rows=7, cols=1, shared_xaxes=True, vertical_spacing=0.01,
+                row_heights=[0.4, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+                specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}], 
+                       [{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}]]
+            )
+            # 1. Main
+            fig.add_trace(go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'], name="K線", increasing_line_color='red', decreasing_line_color='green'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['BB_Upper'], mode='lines', name="BB上", line=dict(color='gray', width=1, dash='dot')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['BB_Lower'], mode='lines', name="BB下", line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(200,200,200,0.1)'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['MA20'], mode='lines', name="MA20", line=dict(color='blue', width=1)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['MA60'], mode='lines', name="MA60", line=dict(color='purple', width=1)), row=1, col=1)
+            # 2. Vol
+            vol_colors = ['red' if c >= o else 'green' for c, o in zip(data['Close'], data['Open'])]
+            fig.add_trace(go.Bar(x=data.index, y=data['Volume'], name="量", marker_color=vol_colors), row=2, col=1)
+            # 3. KD
+            fig.add_trace(go.Scatter(x=data.index, y=data['K'], name="K", line=dict(color='orange', width=1)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['D'], name="D", line=dict(color='blue', width=1)), row=3, col=1)
+            fig.add_hline(y=80, line_dash="dash", line_color="gray", row=3, col=1)
+            fig.add_hline(y=20, line_dash="dash", line_color="gray", row=3, col=1)
+            # 4. MACD
+            macd_colors = ['red' if v >= 0 else 'green' for v in data['MACD_Hist']]
+            fig.add_trace(go.Bar(x=data.index, y=data['MACD_Hist'], name="MACD", marker_color=macd_colors), row=4, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['DIF'], name="DIF", line=dict(color='orange', width=1)), row=4, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['DEA'], name="DEA", line=dict(color='blue', width=1)), row=4, col=1)
+            # 5. RSI
+            fig.add_trace(go.Scatter(x=data.index, y=data['RSI6'], name="RSI6", line=dict(color='magenta', width=1.5)), row=5, col=1)
+            fig.add_hline(y=80, line_dash="dash", line_color="red", row=5, col=1)
+            fig.add_hline(y=20, line_dash="dash", line_color="green", row=5, col=1)
+            # 6. BIAS
+            fig.add_trace(go.Scatter(x=data.index, y=data['BIAS20'], name="BIAS", line=dict(color='teal', width=1.5)), row=6, col=1)
+            fig.add_hline(y=0, line_dash="dash", line_color="gray", row=6, col=1)
+            # 7. DMI
+            fig.add_trace(go.Scatter(x=data.index, y=data['+DI'], name="+DI", line=dict(color='red', width=1)), row=7, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['-DI'], name="-DI", line=dict(color='green', width=1)), row=7, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data['ADX'], name="ADX", line=dict(color='black', width=1.5)), row=7, col=1)
+            fig.add_hline(y=25, line_dash="dash", line_color="gray", row=7, col=1)
+
+            fig.update_layout(height=1400, xaxis_rangeslider_visible=False, hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20))
+            fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
+            axes_labels = {1: "股價", 2: "量", 3: "KD", 4: "MACD", 5: "RSI", 6: "BIAS", 7: "DMI"}
+            for i, label in axes_labels.items():
+                fig.update_yaxes(title_text=label, row=i, col=1)
             
-            # 如果是美股，顯示 USD，台股顯示 TWD
-            st.markdown(f"## {stock_name} ({ticker_input})")
-            st.markdown(f"<h2 style='color:{color_text}'>{current_price:.2f} {currency} ({change:+.2f} / {pct_change:+.2f}%)</h2>", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"### 綜合建議")
-            st.markdown(f"<h3 style='color:{sugg_color}; border: 2px solid {sugg_color}; padding: 5px; text-align: center; border-radius: 10px;'>{suggestion}</h3>", unsafe_allow_html=True)
+            st.plotly_chart(fig, width="stretch")
+            with st.expander("查看詳細歷史數據"):
+                st.dataframe(data.sort_index(ascending=False))
 
-        # 智能分析
-        with st.expander("🤖 查看【8 大指標全方位智能診斷】", expanded=True):
-            cols = st.columns(4) 
-            for i, (indicator, meaning, action, color) in enumerate(signal_list):
-                with cols[i % 4]:
-                    st.markdown(f"**{indicator}**")
-                    st.caption(meaning)
-                    if color == "red": st.markdown(f"<span style='color:red; font-weight:bold'>🔴 {action}</span>", unsafe_allow_html=True)
-                    elif color == "green": st.markdown(f"<span style='color:green; font-weight:bold'>🟢 {action}</span>", unsafe_allow_html=True)
-                    elif color == "orange": st.markdown(f"<span style='color:orange; font-weight:bold'>🟠 {action}</span>", unsafe_allow_html=True)
-                    elif color == "blue": st.markdown(f"<span style='color:blue; font-weight:bold'>🔵 {action}</span>", unsafe_allow_html=True)
-                    else: st.markdown(f"<span style='color:gray'>⚪ {action}</span>", unsafe_allow_html=True)
-                    st.write("---")
+        # ==========================================
+        # TAB 2: 策略回測實驗室 (新功能)
+        # ==========================================
+        with tab2:
+            st.subheader("🛠️ 設定回測參數")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                strategy_type = st.selectbox("選擇策略", ["雙均線策略 (MA Crossover)", "RSI 逆勢策略 (RSI Reversal)"])
+                initial_capital = st.number_input("初始資金", value=1000000, step=100000)
+            with c2:
+                if strategy_type == "雙均線策略 (MA Crossover)":
+                    p1 = st.number_input("短期均線 (MA Short)", value=5, min_value=1)
+                    p2 = st.number_input("長期均線 (MA Long)", value=20, min_value=1)
+                else:
+                    p1 = st.number_input("RSI 買進閾值 (低於此值買)", value=30)
+                    p2 = st.number_input("RSI 賣出閾值 (高於此值賣)", value=70)
+            with c3:
+                st.write("") 
+                st.write("") 
+                run_btn = st.button("🚀 開始回測", type="primary")
 
-        # 繪圖區域
-        st.subheader("技術分析圖表")
-        fig = make_subplots(
-            rows=7, cols=1, 
-            shared_xaxes=True, 
-            vertical_spacing=0.01,
-            row_heights=[0.4, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-            specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}], 
-                   [{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}]]
-        )
+            if run_btn:
+                bt_data, trades, ret, final_val = run_backtest(data, strategy_type, p1, p2, initial_capital)
+                
+                st.divider()
+                m1, m2, m3, m4 = st.columns(4)
+                ret_color = "normal" if ret >=0 else "inverse"
+                m1.metric("初始資金", f"${initial_capital:,}")
+                m2.metric("最終資產", f"${int(final_val):,}")
+                m3.metric("總報酬率", f"{ret:.2f}%", delta_color=ret_color)
+                m4.metric("總交易次數", f"{len(trades)} 次")
 
-        # 1. Main
-        fig.add_trace(go.Candlestick(x=data.index, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'], name="K線", increasing_line_color='red', decreasing_line_color='green'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['BB_Upper'], mode='lines', name="BB上", line=dict(color='gray', width=1, dash='dot')), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['BB_Lower'], mode='lines', name="BB下", line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(200,200,200,0.1)'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['MA20'], mode='lines', name="MA20", line=dict(color='blue', width=1)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['MA60'], mode='lines', name="MA60", line=dict(color='purple', width=1)), row=1, col=1)
+                st.subheader("📈 資金曲線與交易點位")
+                bt_fig = make_subplots(specs=[[{"secondary_y": True}]])
+                bt_fig.add_trace(go.Candlestick(x=bt_data.index, open=bt_data['Open'], high=bt_data['High'], low=bt_data['Low'], close=bt_data['Close'], name="股價", opacity=0.5), secondary_y=False)
 
-        # 2. Volume
-        vol_colors = ['red' if c >= o else 'green' for c, o in zip(data['Close'], data['Open'])]
-        fig.add_trace(go.Bar(x=data.index, y=data['Volume'], name="量", marker_color=vol_colors), row=2, col=1)
+                if not trades.empty:
+                    buy_points = trades[trades['Type'] == 'Buy']
+                    sell_points = trades[trades['Type'] == 'Sell']
+                    bt_fig.add_trace(go.Scatter(x=buy_points['Date'], y=buy_points['Price'], mode='markers', name='買進點', marker=dict(symbol='triangle-up', size=12, color='red')), secondary_y=False)
+                    bt_fig.add_trace(go.Scatter(x=sell_points['Date'], y=sell_points['Price'], mode='markers', name='賣出點', marker=dict(symbol='triangle-down', size=12, color='green')), secondary_y=False)
 
-        # 3. KD
-        fig.add_trace(go.Scatter(x=data.index, y=data['K'], mode='lines', name="K", line=dict(color='orange', width=1)), row=3, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['D'], mode='lines', name="D", line=dict(color='blue', width=1)), row=3, col=1)
-        fig.add_hline(y=80, line_dash="dash", line_color="gray", row=3, col=1)
-        fig.add_hline(y=20, line_dash="dash", line_color="gray", row=3, col=1)
+                bt_fig.add_trace(go.Scatter(x=bt_data.index, y=bt_data['Equity'], mode='lines', name='資產淨值', line=dict(color='gold', width=2)), secondary_y=True)
+                bt_fig.update_layout(height=600, hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20))
+                bt_fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
+                bt_fig.update_yaxes(title_text="股價", secondary_y=False)
+                bt_fig.update_yaxes(title_text="總資產", secondary_y=True)
+                st.plotly_chart(bt_fig, width="stretch")
 
-        # 4. MACD
-        macd_colors = ['red' if v >= 0 else 'green' for v in data['MACD_Hist']]
-        fig.add_trace(go.Bar(x=data.index, y=data['MACD_Hist'], name="MACD", marker_color=macd_colors), row=4, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['DIF'], mode='lines', name="DIF", line=dict(color='orange', width=1)), row=4, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['DEA'], mode='lines', name="DEA", line=dict(color='blue', width=1)), row=4, col=1)
-
-        # 5. RSI
-        fig.add_trace(go.Scatter(x=data.index, y=data['RSI6'], mode='lines', name="RSI6", line=dict(color='magenta', width=1.5)), row=5, col=1)
-        fig.add_hline(y=80, line_dash="dash", line_color="red", row=5, col=1)
-        fig.add_hline(y=20, line_dash="dash", line_color="green", row=5, col=1)
-
-        # 6. BIAS
-        fig.add_trace(go.Scatter(x=data.index, y=data['BIAS20'], mode='lines', name="BIAS20", line=dict(color='teal', width=1.5)), row=6, col=1)
-        fig.add_hline(y=0, line_dash="dash", line_color="gray", row=6, col=1)
-
-        # 7. DMI
-        fig.add_trace(go.Scatter(x=data.index, y=data['+DI'], mode='lines', name="+DI", line=dict(color='red', width=1)), row=7, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['-DI'], mode='lines', name="-DI", line=dict(color='green', width=1)), row=7, col=1)
-        fig.add_trace(go.Scatter(x=data.index, y=data['ADX'], mode='lines', name="ADX", line=dict(color='black', width=1.5)), row=7, col=1)
-        fig.add_hline(y=25, line_dash="dash", line_color="gray", row=7, col=1)
-
-        fig.update_layout(height=1400, xaxis_rangeslider_visible=False, title_text=f"{ticker_input} 技術圖表", hovermode="x unified", margin=dict(l=20, r=20, t=40, b=20))
-        fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])
-        
-        axes_labels = {1: "股價", 2: "量", 3: "KD", 4: "MACD", 5: "RSI", 6: "BIAS", 7: "DMI"}
-        for i, label in axes_labels.items():
-            fig.update_yaxes(title_text=label, row=i, col=1)
-
-        st.plotly_chart(fig, width="stretch")
-
-        with st.expander("查看詳細歷史數據"):
-            st.dataframe(data.sort_index(ascending=False))
+                with st.expander("查看詳細交易紀錄"):
+                    st.dataframe(trades)
     else:
-        st.error(f"找不到代號：{ticker_input}，請確認輸入是否正確。")
+        st.error(f"找不到代號：{ticker_input}，請確認輸入正確。")
