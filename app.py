@@ -201,7 +201,7 @@ def analyze_signals(df):
     return signals, final_suggestion, final_color
 
 # --- 5. 回測功能 (修正邏輯：預扣手續費 + 處理NaN) ---
-def run_backtest(df, strategy, param1, param2, initial_cash=1000000):
+def run_backtest(df, strategy, param1, param2, initial_cash=10000000):
     cash = initial_cash
     position = 0
     trade_log = []
@@ -407,4 +407,5 @@ if ticker_input:
                 with st.expander("查看詳細交易紀錄"):
                     st.dataframe(trades)
     else:
+
         st.error(f"找不到代號：{ticker_input}，請確認輸入正確。")
