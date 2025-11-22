@@ -17,6 +17,7 @@ market_type = st.sidebar.radio("1️⃣ 請選擇市場", ["🇹🇼 台股 (Tai
 
 # 股票清單 (注意：這裡的 Key 必須跟選單顯示的一模一樣)
 tw_stocks = {
+    "2382 廣達": "2382.TW",
     "🔍 自行輸入代號": "custom",
     "2330 台積電": "2330.TW", 
     "2317 鴻海": "2317.TW", 
@@ -25,17 +26,16 @@ tw_stocks = {
     "2327 國巨": "2327.TW",
     "0050 元大台灣50": "0050.TW", 
     "2408 南亞科": "2408.TW", 
-    "2344 華邦電": "2344.TW",
-    "2382 廣達": "2382.TW", 
+    "2344 華邦電": "2344.TW", 
     "3231 緯創": "3231.TW",
 }
 
 us_stocks = {
+    "MSFT (Microsoft)": "MSFT",
     "🔍 自行輸入代號": "custom",
     "NVDA (NVIDIA)": "NVDA", 
     "AAPL (Apple)": "AAPL", 
     "TSLA (Tesla)": "TSLA",
-    "MSFT (Microsoft)": "MSFT", 
     "AMD (AMD)": "AMD", 
     "QQQ (Nasdaq 100)": "QQQ", 
     "SPY (S&P 500)": "SPY", 
