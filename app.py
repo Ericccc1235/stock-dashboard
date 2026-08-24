@@ -6,16 +6,16 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 # --- 1. 頁面設定 ---
-st.set_page_config(page_title="終極股市看板", layout="wide")
+st.set_page_config(page_title="終極股市看板", layout="wide", page_icon="📈")
 st.title("📈 終極股市看板 (全指標分析 + 策略回測)")
 
-# --- 初始化 Session State ---
+# 初始化 Session State
 if 'backtest_result' not in st.session_state:
     st.session_state.backtest_result = None
 if 'last_ticker' not in st.session_state:
     st.session_state.last_ticker = None
 
-# --- 2. 側邊欄輸入 ---
+# --- 2. 側邊欄設定 ---
 st.sidebar.header("查詢設定")
 market_type = st.sidebar.radio("1️⃣ 請選擇市場", ["🇹🇼 台股 (Taiwan)", "🇺🇸 美股 (US)"], horizontal=True)
 
@@ -33,6 +33,7 @@ tw_stocks = {
     "2408 南亞科": "2408.TW", 
     "2344 華邦電": "2344.TW"
 }
+
 us_stocks = {
     "NVDA (NVIDIA)": "NVDA",
     "🔍 自行輸入代號": "custom",
@@ -54,12 +55,16 @@ default_index = options_list.index(default_option) if default_option in options_
 selected_label = st.sidebar.selectbox("2️⃣ 搜尋或選擇股票", options=options_list, index=default_index)
 
 if current_dict[selected_label] == "custom":
-    raw_input = st.sidebar.text_input("請輸入代號 (如 2330 或 NVDA)")
+    raw_input = st.sidebar.text_input("請輸入代號 (例如: 2330, 8299.TWO 或 NVDA)")
     if raw_input:
+        cleaned = raw_input.strip()
         if "台股" in market_type:
-            ticker_input = f"{raw_input.strip()}.TW" if raw_input.strip().isdigit() and ".TW" not in raw_input.upper() else raw_input.strip().upper()
+            if cleaned.isdigit():
+                ticker_input = f"{cleaned}.TW"
+            else:
+                ticker_input = cleaned.upper()
         else:
-            ticker_input = raw_input.strip().upper()
+            ticker_input = cleaned.upper()
     else:
         ticker_input = None
 else:
@@ -71,7 +76,7 @@ if ticker_input != st.session_state.last_ticker:
 
 period = st.sidebar.selectbox("3️⃣ 資料時間範圍", ("3mo", "6mo", "1y", "2y", "5y", "10y", "20y", "max"), index=2)
 
-# --- 3. 指標計算函數 ---
+# --- 3. 指標計算 ---
 def calculate_indicators(df):
     df = df.copy()
     # 均線與布林通道
@@ -150,31 +155,42 @@ def analyze_signals(df):
     signals = []
     score = 0 
 
+    # 均線趨勢
     if last['Close'] > last['MA20'] and last['Close'] > last['MA60']:
-        signals.append(("均線趨勢", "多頭排列 (站上月/季線)", "偏多", "red")); score += 2
+        signals.append(("均線趨勢", "多頭排列 (站上月/季線)", "偏多", "red"))
+        score += 2
     elif last['Close'] < last['MA20'] and last['Close'] < last['MA60']:
-        signals.append(("均線趨勢", "空頭排列 (跌破月/季線)", "偏空", "green")); score -= 2
+        signals.append(("均線趨勢", "空頭排列 (跌破月/季線)", "偏空", "green"))
+        score -= 2
     else:
         signals.append(("均線趨勢", "均線糾結震盪", "中立", "gray"))
 
+    # 成交量
     if last['Volume'] > 1.5 * last['Vol_MA5']:
-        signals.append(("成交量能", "爆量 (>5日均量1.5倍)", "人氣匯集", "red")); score += 0.5
+        signals.append(("成交量能", "爆量 (>5日均量1.5倍)", "人氣匯集", "red"))
+        score += 0.5
     elif last['Volume'] < 0.6 * last['Vol_MA5']:
         signals.append(("成交量能", "量縮 (<5日均量0.6倍)", "觀望", "gray"))
     else:
         signals.append(("成交量能", "量能溫和", "正常", "gray"))
 
+    # 布林通道
     if last['Close'] > last['BB_Upper']:
-        signals.append(("布林通道", "突破上軌", "強勢/超買", "red")); score += 0.5
+        signals.append(("布林通道", "突破上軌", "強勢/超買", "red"))
+        score += 0.5
     elif last['Close'] < last['BB_Lower']:
-        signals.append(("布林通道", "跌破下軌", "弱勢/超賣", "green")); score -= 0.5
+        signals.append(("布林通道", "跌破下軌", "弱勢/超賣", "green"))
+        score -= 0.5
     else:
         signals.append(("布林通道", "通道內運行", "正常", "gray"))
 
+    # KD
     if last['K'] > last['D'] and prev['K'] <= prev['D']:
-        signals.append(("KD指標", f"黃金交叉 (K={last['K']:.1f})", "買進", "red")); score += 1.5
+        signals.append(("KD指標", f"黃金交叉 (K={last['K']:.1f})", "買進", "red"))
+        score += 1.5
     elif last['K'] < last['D'] and prev['K'] >= prev['D']:
-        signals.append(("KD指標", f"死亡交叉 (K={last['K']:.1f})", "賣出", "green")); score -= 1.5
+        signals.append(("KD指標", f"死亡交叉 (K={last['K']:.1f})", "賣出", "green"))
+        score -= 1.5
     elif last['K'] > 80:
         signals.append(("KD指標", f"高檔鈍化 (K={last['K']:.1f})", "強勢/警戒", "orange"))
     elif last['K'] < 20:
@@ -182,27 +198,37 @@ def analyze_signals(df):
     else:
         signals.append(("KD指標", f"區間整理 (K={last['K']:.1f})", "中立", "gray"))
 
+    # MACD
     if last['MACD_Hist'] > 0 and prev['MACD_Hist'] <= 0:
-        signals.append(("MACD", "柱狀體翻紅", "轉強", "red")); score += 1
+        signals.append(("MACD", "柱狀體翻紅", "轉強", "red"))
+        score += 1
     elif last['MACD_Hist'] < 0 and prev['MACD_Hist'] >= 0:
-        signals.append(("MACD", "柱狀體翻綠", "轉弱", "green")); score -= 1
+        signals.append(("MACD", "柱狀體翻綠", "轉弱", "green"))
+        score -= 1
     else:
         signals.append(("MACD", "動能持平", "中立", "gray"))
 
+    # RSI
     if last['RSI6'] > 80:
-        signals.append(("RSI", f"過熱 (RSI6={last['RSI6']:.1f})", "修正風險", "green")); score -= 1
+        signals.append(("RSI", f"短線過熱 ({last['RSI6']:.1f})", "拉回風險", "green"))
+        score -= 1
     elif last['RSI6'] < 20:
-        signals.append(("RSI", f"超賣 (RSI6={last['RSI6']:.1f})", "反彈機會", "red")); score += 1
+        signals.append(("RSI", f"短線超賣 ({last['RSI6']:.1f})", "反彈機會", "red"))
+        score += 1
     else:
-        signals.append(("RSI", f"正常 (RSI6={last['RSI6']:.1f})", "中立", "gray"))
+        signals.append(("RSI", f"數值中性 ({last['RSI6']:.1f})", "正常", "gray"))
 
+    # 乖離率
     if last['BIAS20'] > 10:
-        signals.append(("乖離率", f"正乖離過大 ({last['BIAS20']:.1f}%)", "過熱拉回", "green")); score -= 1
+        signals.append(("乖離率", f"正乖離偏高 ({last['BIAS20']:.1f}%)", "過熱拉回", "green"))
+        score -= 1
     elif last['BIAS20'] < -10:
-        signals.append(("乖離率", f"負乖離過大 ({last['BIAS20']:.1f}%)", "跌深反彈", "red")); score += 1
+        signals.append(("乖離率", f"負乖離偏大 ({last['BIAS20']:.1f}%)", "跌深反彈", "red"))
+        score += 1
     else:
         signals.append(("乖離率", f"正常 ({last['BIAS20']:.1f}%)", "中立", "gray"))
 
+    # DMI/ADX
     if last['ADX'] > 25:
         trend = "多方" if last['+DI'] > last['-DI'] else "空方"
         color = "red" if trend == "多方" else "green"
@@ -228,8 +254,8 @@ def analyze_signals(df):
 
     return signals, final_suggestion, final_color
 
-# --- 5. 回測引擎 (次日開盤成交 + 完整費用模型) ---
-def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW"):
+# --- 5. 回測引擎 ---
+def run_backtest(df, strategy, param1, param2, initial_cash=1000000, market="TW"):
     cash = float(initial_cash)
     position = 0
     trade_log = []
@@ -260,7 +286,7 @@ def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW
             signals.append(holding)
         bt_df['Raw_Signal'] = signals
 
-    # 次日執行 (Shift 1 避免 Lookahead Bias)
+    # 次日執行 (Shift 1 防止未來函數)
     bt_df['Target_Position'] = bt_df['Raw_Signal'].shift(1).fillna(0)
     bt_df['Trade_Action'] = bt_df['Target_Position'].diff().fillna(0)
 
@@ -273,7 +299,7 @@ def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW
         date = bt_df.index[i]
         action = bt_df['Trade_Action'].iloc[i]
 
-        # 買進訊號
+        # 買進
         if action == 1 and position == 0:
             max_shares = int(cash / (exec_price * (1 + fee_rate)))
             if max_shares > 0:
@@ -291,7 +317,7 @@ def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW
                     'Cash_Balance': round(cash, 2)
                 })
 
-        # 賣出訊號
+        # 賣出
         elif action == -1 and position > 0:
             revenue = position * exec_price
             fee = revenue * fee_rate
@@ -308,7 +334,7 @@ def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW
             })
             position = 0
 
-        # 當日結算資產淨值
+        # 當日結算淨值
         current_equity = cash + (position * close_price)
         equity_curve.append(current_equity)
 
@@ -318,28 +344,52 @@ def run_backtest(df, strategy, param1, param2, initial_cash=10000000, market="TW
     trades_df = pd.DataFrame(trade_log)
     return bt_df, trades_df, total_ret, final_val
 
-# --- 6. 資料獲取 ---
+# --- 6. 資料獲取與防錯快取 ---
+@st.cache_data(ttl=300, show_spinner=False)
 def get_stock_data(ticker, period_choice):
     try:
         stock = yf.Ticker(ticker)
         df = stock.history(period=period_choice)
-        if df.empty or len(df) < 20:
+        
+        # 備援機制
+        if df is None or df.empty:
+            df = yf.download(ticker, period=period_choice, progress=False)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
+        if df is None or df.empty or len(df) < 5:
             return None, None
+
+        # 獨立抓取 info，即使失敗也不中斷
+        info = {}
+        try:
+            raw_info = stock.info
+            if isinstance(raw_info, dict):
+                info = raw_info
+        except Exception:
+            pass
+
+        if not info:
+            info = {
+                'longName': ticker,
+                'currency': 'TWD' if '.TW' in ticker or '.TWO' in ticker else 'USD'
+            }
+
         df = calculate_indicators(df)
-        info = stock.info
         return df, info
-    except Exception:
+    except Exception as e:
+        print(f"Fetch Error: {e}")
         return None, None
 
-# --- 7. 主程式邏輯 ---
+# --- 7. 主程式 ---
 if ticker_input:
-    with st.spinner(f"正在分析 {ticker_input} ..."):
+    with st.spinner(f"正在全速運算 {ticker_input} 所有數據..."):
         data, info = get_stock_data(ticker_input, period)
 
     if data is not None:
         tab1, tab2 = st.tabs(["📊 全方位市場儀表板", "🧪 策略回測實驗室"])
 
-        # TAB 1: 看盤與診斷
+        # TAB 1: 儀表板
         with tab1:
             signal_list, suggestion, sugg_color = analyze_signals(data)
             col1, col2 = st.columns([3, 1])
@@ -371,49 +421,51 @@ if ticker_input:
                 rows=7, cols=1, shared_xaxes=True, vertical_spacing=0.015,
                 row_heights=[0.38, 0.1, 0.1, 0.1, 0.1, 0.1, 0.12]
             )
+            date_strings = data.index.strftime('%Y-%m-%d')
+
             # 1. K線 + 布林 + 均線
-            fig.add_trace(go.Candlestick(x=data.index.strftime('%Y-%m-%d'), open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'], name="K線", increasing_line_color='red', decreasing_line_color='green'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['BB_Upper'], mode='lines', name="BB上軌", line=dict(color='gray', width=1, dash='dot')), row=1, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['BB_Lower'], mode='lines', name="BB下軌", line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(200,200,200,0.08)'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['MA20'], mode='lines', name="MA20", line=dict(color='#1E90FF', width=1.2)), row=1, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['MA60'], mode='lines', name="MA60", line=dict(color='#9370DB', width=1.2)), row=1, col=1)
+            fig.add_trace(go.Candlestick(x=date_strings, open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'], name="K線", increasing_line_color='red', decreasing_line_color='green'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['BB_Upper'], mode='lines', name="BB上軌", line=dict(color='gray', width=1, dash='dot')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['BB_Lower'], mode='lines', name="BB下軌", line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(200,200,200,0.08)'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['MA20'], mode='lines', name="MA20", line=dict(color='#1E90FF', width=1.2)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['MA60'], mode='lines', name="MA60", line=dict(color='#9370DB', width=1.2)), row=1, col=1)
             
             # 2. 成交量
             vol_colors = ['red' if c >= o else 'green' for c, o in zip(data['Close'], data['Open'])]
-            fig.add_trace(go.Bar(x=data.index.strftime('%Y-%m-%d'), y=data['Volume'], name="成交量", marker_color=vol_colors), row=2, col=1)
+            fig.add_trace(go.Bar(x=date_strings, y=data['Volume'], name="成交量", marker_color=vol_colors), row=2, col=1)
             
             # 3. KD
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['K'], name="K", line=dict(color='orange', width=1)), row=3, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['D'], name="D", line=dict(color='blue', width=1)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['K'], name="K", line=dict(color='orange', width=1)), row=3, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['D'], name="D", line=dict(color='blue', width=1)), row=3, col=1)
             fig.add_hline(y=80, line_dash="dash", line_color="gray", row=3, col=1)
             fig.add_hline(y=20, line_dash="dash", line_color="gray", row=3, col=1)
             
             # 4. MACD
             hist_colors = ['red' if v >= 0 else 'green' for v in data['MACD_Hist']]
-            fig.add_trace(go.Bar(x=data.index.strftime('%Y-%m-%d'), y=data['MACD_Hist'], name="MACD柱狀", marker_color=hist_colors), row=4, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['DIF'], name="DIF", line=dict(color='orange', width=1)), row=4, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['DEA'], name="DEA", line=dict(color='blue', width=1)), row=4, col=1)
+            fig.add_trace(go.Bar(x=date_strings, y=data['MACD_Hist'], name="MACD柱狀", marker_color=hist_colors), row=4, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['DIF'], name="DIF", line=dict(color='orange', width=1)), row=4, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['DEA'], name="DEA", line=dict(color='blue', width=1)), row=4, col=1)
             
             # 5. RSI
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['RSI6'], name="RSI6", line=dict(color='magenta', width=1.2)), row=5, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['RSI6'], name="RSI6", line=dict(color='magenta', width=1.2)), row=5, col=1)
             fig.add_hline(y=80, line_dash="dash", line_color="red", row=5, col=1)
             fig.add_hline(y=20, line_dash="dash", line_color="green", row=5, col=1)
             
             # 6. 乖離率
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['BIAS20'], name="BIAS20", line=dict(color='teal', width=1.2)), row=6, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['BIAS20'], name="BIAS20", line=dict(color='teal', width=1.2)), row=6, col=1)
             fig.add_hline(y=0, line_dash="dash", line_color="gray", row=6, col=1)
             
             # 7. DMI / ADX
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['+DI'], name="+DI", line=dict(color='red', width=1)), row=7, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['-DI'], name="-DI", line=dict(color='green', width=1)), row=7, col=1)
-            fig.add_trace(go.Scatter(x=data.index.strftime('%Y-%m-%d'), y=data['ADX'], name="ADX", line=dict(color='black', width=1.5)), row=7, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['+DI'], name="+DI", line=dict(color='red', width=1)), row=7, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['-DI'], name="-DI", line=dict(color='green', width=1)), row=7, col=1)
+            fig.add_trace(go.Scatter(x=date_strings, y=data['ADX'], name="ADX", line=dict(color='black', width=1.5)), row=7, col=1)
             fig.add_hline(y=25, line_dash="dash", line_color="gray", row=7, col=1)
 
             fig.update_layout(height=1300, xaxis_rangeslider_visible=False, hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20))
             fig.update_xaxes(type="category")
             st.plotly_chart(fig, use_container_width=True)
 
-        # TAB 2: 回測實驗室
+        # TAB 2: 回測
         with tab2:
             st.subheader("🛠️ 策略回測設定")
             with st.form("backtest_form"):
@@ -453,10 +505,10 @@ if ticker_input:
                 else:
                     st.subheader("📈 資金曲線與交易點位")
                     bt_fig = make_subplots(specs=[[{"secondary_y": True}]])
-                    date_strs = bt_data.index.strftime('%Y-%m-%d')
+                    bt_date_strings = bt_data.index.strftime('%Y-%m-%d')
                     
                     bt_fig.add_trace(go.Candlestick(
-                        x=date_strs, open=bt_data['Open'], high=bt_data['High'], 
+                        x=bt_date_strings, open=bt_data['Open'], high=bt_data['High'], 
                         low=bt_data['Low'], close=bt_data['Close'], name="K線", opacity=0.4
                     ), secondary_y=False)
 
@@ -475,7 +527,7 @@ if ticker_input:
                         ), secondary_y=False)
 
                     bt_fig.add_trace(go.Scatter(
-                        x=date_strs, y=bt_data['Equity'], mode='lines', name='資產淨值',
+                        x=bt_date_strings, y=bt_data['Equity'], mode='lines', name='資產淨值',
                         line=dict(color='gold', width=2.5)
                     ), secondary_y=True)
 
@@ -488,4 +540,4 @@ if ticker_input:
                     with st.expander("📄 查看詳細交易紀錄清單"):
                         st.dataframe(trades, use_container_width=True)
     else:
-        st.error(f"無法取得代號【{ticker_input}】之交易數據，請確認代號正確或市場狀態。")
+        st.error(f"無法取得代號【{ticker_input}】之交易數據，請確認代號正確或網路連線狀態。")
